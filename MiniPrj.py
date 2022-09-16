@@ -8,7 +8,7 @@ def initialize_params(dims):
     np.random.seed(3000)
     L=len(dims)
     for i in range(L-1):
-        params['w'+str(i)]=np.random.randn(dims[i+1],dims[i])*0.001
+        params['w'+str(i)]=np.random.randn(dims[i+1],dims[i])*0.01
         params['b'+str(i)]=np.zeros(shape=(dims[i+1],1))
     return params
 
@@ -23,7 +23,7 @@ def step_up(x,w,b,activation):
         #print("a:",a.shape)
     return a,[x,w,b,z]
 
-def step_down(dZ,c,activation,_lambda=0.0000001):
+def step_down(dZ,c,activation,_lambda=0.000001):
     x,w,b,z=c
     m=dZ.shape[1]
     dW=np.dot(dZ,x.T)/m+(_lambda*w)/m
@@ -73,7 +73,7 @@ def backward_prop(y_pred,Y_train,payload):
 
     return gradients
 
-def compute_cost(y_pred,Y_train,params,_lambda=0.0000001):
+def compute_cost(y_pred,Y_train,params,_lambda=0.000001):
     m=y_pred.shape[1]
     error=1e-8
     j=np.sum(-1*np.multiply(Y_train,np.log(y_pred+error))+np.multiply(1-Y_train,np.log(1-y_pred+error)))
@@ -104,45 +104,41 @@ def optimize_params(params,gradients,a):
     #print("params size:",len(params))
     return params
 
-def normalize(f,l):
-    mean=np.mean(f,axis=1)
-    std=np.std(f,axis=1)
-    print(mean)
-    f_norm=(f-mean)/std
+def normalize(f):
+    mean=np.mean(f,axis=0)
+    #std=np.std(f,axis=0)
+    #print(std)
+    #print(f-mean)
+    #f_norm=np.divide((f-mean),std.T)
 
-    mean=np.mean(l,axis=1)
-    std=np.std(l,axis=1)
-    l_norm=(f-mean)/std
-
-    return [f_norm,l_norm]
+    return (f-mean)/255
 
 def thresholding(y,T):
+    print(T)
     for i in range(y.shape[0]):
         for j in range(y.shape[1]):
             if y[i][j]>=T:
                 y[i][j]=255
             else:
+                print("y-0 at:",(i,j))
                 y[i][j]=0
     return y
 
 def NN(dims,iter=100,a=0.00001):
     f=pd.read_csv('features.csv')
     l=pd.read_csv('labels.csv')
-    f,l=normalize(f,l)
-    X_train=np.array(f.iloc[:,1:9],dtype='uint8')
-    Y_train=np.array(l.iloc[:,1:9],dtype='uint8')
-    X_val=np.array(f.iloc[:,9:10],dtype='uint8')
-    Y_val=np.array(l.iloc[:,9:10],dtype='uint8')
-    X_test=np.array(f.iloc[:,10:],dtype='uint8')
-    Y_test=np.array(l.iloc[:,10:],dtype='uint8')
+    X_train=np.array(f.iloc[:,1:9],dtype='uint8')/255
+    Y_train=np.array(l.iloc[:,1:9],dtype='uint8')/255
+    X_val=np.array(f.iloc[:,9:10],dtype='uint8')/255
+    Y_val=np.array(l.iloc[:,9:10],dtype='uint8')/255
+    X_test=np.array(f.iloc[:,10:],dtype='uint8')/255
+    Y_test=np.array(l.iloc[:,10:],dtype='uint8')/255
     params=initialize_params(dims)
-    print("Y_train:",Y_train.shape)
-    #print(X_train.shape)
-    #return
     cost_train=[]
     for i in range(iter):
 
         # print("i",i)
+
         y_pred,payload=forward_prop(X_train,params)
         c1=compute_cost(y_pred,Y_train,params)
         print(str(i)+" cost:",c1)
@@ -167,24 +163,39 @@ def find_metric(y_pred,y_actual,th):
 
 
 def BT19ECE032_linreg(arch):
-    [params, X_test, Y_test, X_val, Y_val]=NN(arch,75,0.00000001)
+    [params, X_test, Y_test, X_val, Y_val]=NN(arch,100,0.001)
 
     y1,t1=forward_prop(X_val,params)
     y2,t2=forward_prop(X_test,params)
-    print("validation accuracy:",accuracy(y1,Y_val,0.5))
+    print("validat ion accuracy:",accuracy(y1,Y_val,0.5))
     print("test accuracy",accuracy(y2,Y_test,0.5))
-    img=cv2.imread('cameraman.png')
+    img=cv2.imread('test.jpeg')
     img=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
     img=cv2.resize(img,(256,256))
     cv2.imshow('original img',img)
     cv2.waitKey(0)
     img_arr=np.array(img).reshape((-1,1))
+    print(img_arr)
     y,t=forward_prop(img_arr,params)
     y=np.reshape(y,(256,256))
-    y=thresholding(y,0.5)
+    y*=255
     print(y)
-    cv2.imshow('predicted edge',y)
+    for i in range(y.shape[0]):
+        for j in range(y.shape[1]):
+            if y[i][j]>=127:
+                y[i][j]=255
+            else:
+                print("y-0 at:",(i,j))
+                y[i][j]=0
+    cv2.imshow("edge",y)
     cv2.waitKey(0)
+
+    # for i in [50,100,127,210]:
+    #     t=y
+    #     t=thresholding(t,i)
+    #     print(t)
+    #     cv2.imshow('predicted edge',t)
+    #     cv2.waitKey(0)
     # x=[]
     # y=[]
     # for i in [0.5,0.6,0.7,0.8,0.9,1]:
@@ -197,4 +208,4 @@ def BT19ECE032_linreg(arch):
     # plt.ylabel('TPR')
     # plt.show()
     return
-BT19ECE032_linreg([65536,1000,1000,65536])
+BT19ECE032_linreg([65536,100,100,1000,65536])
